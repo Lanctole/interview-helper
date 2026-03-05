@@ -2,17 +2,21 @@
 [![en](https://img.shields.io/badge/lang-en-red.svg)](README.md)
 [![ru](https://img.shields.io/badge/lang-ru-blue.svg)](README.ru.md)
 
-This is a fork of the project https://github.com/j4wg/interview-coder-withoupaywall-opensource with custom modifications:
-- Easier to add new providers. Added Ollama, OpenRouter.
-- Support for 2K monitors and multi-monitor systems (screenshots primary display).
-- Added screenshot preprocessing so dark backgrounds don't break functionality. Room for optimization here to save tokens or processing speed - cropping screenshots, grayscale, compression.
-- Refactored ProcessingHelper - now separate: prompts, image processing, response formatting.
-- In the one-model-for-all branch, switched to recognition and processing in a single model. qwen3.5:9b shows excellent results.
+This is a fork of [j4wg/interview-coder-withoupaywall-opensource](https://github.com/j4wg/interview-coder-withoupaywall-opensource) with the following improvements:
 
-### To hide the terminal window, you can use RBTray https://github.com/benbuck/rbtray
-- Launch RBTray.
-- Focus the desired window.
-- Ctrl + Alt + Down Arrow - hides to tray.
+- **Extended Provider Support**: Easier provider architecture. Added Ollama and OpenRouter integrations.
+- **Multi-Monitor Support**: Full support for 2K monitors and multi-display systems (captures primary display).
+- **Screenshot Preprocessing**: Added preprocessing pipeline for screenshots to maintain functionality on dark backgrounds. Includes optimization opportunities for token savings and speed - cropping, grayscale, compression.
+- **Code Refactoring**: Restructured ProcessingHelper into separate modules: prompts, image processing, response formatting.
+- **Single Model Pipeline**: In the `one-model-for-all` branch, consolidated recognition and processing into one model. `qwen3.5:9b` shows excellent results.
+
+### Hiding Terminal Window
+
+To hide the terminal window, use [RBTray](https://github.com/benbuck/rbtray):
+
+1. Launch RBTray
+2. Focus the desired window
+3. Press `Ctrl + Alt + Down Arrow` to minimize to system tray
 
 ## Free, Open-Source AI-Powered Interview Preparation Tool
 
@@ -246,17 +250,11 @@ The packaged applications will be available in the `release` directory.
 
 ## Adding More AI Models
 
-This application is built with extensibility in mind. You can easily add support for additional LLMs alongside the existing OpenAI integration:
-
-- You can add Claude, Deepseek, Grok, or any other AI model as alternative options
-- The application architecture allows for multiple LLM backends to coexist
-- Users can have the freedom to choose their preferred AI provider
-
-To add new models, simply extend the API integration in `electron/ProcessingHelper.ts` and add the corresponding UI options in `src/components/Settings/SettingsDialog.tsx`. The modular design makes this straightforward without disrupting existing functionality.
+To add new models, simply extend the API integration in `electron/providers` and add the corresponding UI options in `src/components/Settings/SettingsDialog.tsx`. The modular design makes this straightforward without disrupting existing functionality.
 
 ## Configuration
 
-- **OpenAI API Key**: Your personal API key is stored locally and only used for API calls to OpenAI
+- **OpenAI API Key**: Your personal API key is stored locally and only used for API calls to OpenAI, Gemini, OpenRouter, Ollama or esle providers
 - **Model Selection**: You can choose between GPT-4o and GPT-4o-mini for each stage of processing:
   - Problem Extraction: Analyzes screenshots to understand the coding problem
   - Solution Generation: Creates optimized solutions with explanations
