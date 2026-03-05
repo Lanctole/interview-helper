@@ -179,113 +179,102 @@ export class ScreenshotHelper {
   /**
    * Windows-specific screenshot capture with multiple fallback mechanisms
    */
-  private async captureWindowsScreenshot(): Promise<Buffer> {
-    console.log("Attempting Windows screenshot with multiple methods");
+/**
+ * Windows-specific screenshot capture with multiple fallback mechanisms
+ */
+private async captureWindowsScreenshot(): Promise<Buffer> {
+  console.log("Attempting Windows screenshot with multiple methods");
 
-    // Method 1: Try screenshot-desktop with filename first
-    try {
-      const tempFile = path.join(this.tempDir, `temp-${uuidv4()}.png`);
+  // Method 1: Try screenshot-desktop
+  try {
+    const tempFile = path.join(this.tempDir, `temp-${uuidv4()}.png`);
+    console.log(
+      `Taking Windows screenshot to temp file (Method 1): ${tempFile}`
+    );
+
+    await screenshot({ filename: tempFile });
+
+    if (fs.existsSync(tempFile)) {
+      const buffer = await fs.promises.readFile(tempFile);
       console.log(
-        `Taking Windows screenshot to temp file (Method 1): ${tempFile}`
+        `Method 1 successful, screenshot size: ${buffer.length} bytes`
       );
 
-      await screenshot({ filename: tempFile });
+      try {
+        await fs.promises.unlink(tempFile);
+      } catch (cleanupErr) {
+        console.warn("Failed to clean up temp file:", cleanupErr);
+      }
+
+      return buffer;
+    } else {
+      console.log("Method 1 failed: File not created");
+      throw new Error("Screenshot file not created");
+    }
+  } catch (error) {
+    console.warn("Windows screenshot Method 1 failed:", error);
+
+    // Method 2: PowerShell — только PRIMARY экран
+    try {
+      console.log("Attempting Windows screenshot with PowerShell (Method 2)");
+      const tempFile = path.join(this.tempDir, `ps-temp-${uuidv4()}.png`);
+
+      const psScript = `
+      Add-Type -AssemblyName System.Windows.Forms,System.Drawing
+      $screen = [System.Windows.Forms.Screen]::PrimaryScreen
+      $bounds = $screen.Bounds
+      $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
+      $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+      $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
+      $bmp.Save('${tempFile.replace(
+        /\\/g,
+        "\\\\"
+      )}', [System.Drawing.Imaging.ImageFormat]::Png)
+      $graphics.Dispose()
+      $bmp.Dispose()
+      `;
+
+      await execFileAsync("powershell", [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        psScript,
+      ]);
 
       if (fs.existsSync(tempFile)) {
         const buffer = await fs.promises.readFile(tempFile);
         console.log(
-          `Method 1 successful, screenshot size: ${buffer.length} bytes`
+          `Method 2 successful, screenshot size: ${buffer.length} bytes`
         );
 
-        // Cleanup temp file
         try {
           await fs.promises.unlink(tempFile);
-        } catch (cleanupErr) {
-          console.warn("Failed to clean up temp file:", cleanupErr);
+        } catch (err) {
+          console.warn("Failed to clean up PowerShell temp file:", err);
         }
 
         return buffer;
       } else {
-        console.log("Method 1 failed: File not created");
-        throw new Error("Screenshot file not created");
+        throw new Error("PowerShell screenshot file not created");
       }
-    } catch (error) {
-      console.warn("Windows screenshot Method 1 failed:", error);
+    } catch (psError) {
+      console.warn("Windows PowerShell screenshot failed:", psError);
 
-      // Method 2: Try using PowerShell
-      try {
-        console.log("Attempting Windows screenshot with PowerShell (Method 2)");
-        const tempFile = path.join(this.tempDir, `ps-temp-${uuidv4()}.png`);
+      console.log("All screenshot methods failed, creating placeholder image");
 
-        // PowerShell command to take screenshot using .NET classes
-        const psScript = `
-        Add-Type -AssemblyName System.Windows.Forms,System.Drawing
-        $screens = [System.Windows.Forms.Screen]::AllScreens
-        $top = ($screens | ForEach-Object {$_.Bounds.Top} | Measure-Object -Minimum).Minimum
-        $left = ($screens | ForEach-Object {$_.Bounds.Left} | Measure-Object -Minimum).Minimum
-        $width = ($screens | ForEach-Object {$_.Bounds.Right} | Measure-Object -Maximum).Maximum
-        $height = ($screens | ForEach-Object {$_.Bounds.Bottom} | Measure-Object -Maximum).Maximum
-        $bounds = [System.Drawing.Rectangle]::FromLTRB($left, $top, $width, $height)
-        $bmp = New-Object System.Drawing.Bitmap $bounds.Width, $bounds.Height
-        $graphics = [System.Drawing.Graphics]::FromImage($bmp)
-        $graphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
-        $bmp.Save('${tempFile.replace(
-          /\\/g,
-          "\\\\"
-        )}', [System.Drawing.Imaging.ImageFormat]::Png)
-        $graphics.Dispose()
-        $bmp.Dispose()
-        `;
+      const fallbackBuffer = Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
+        "base64"
+      );
+      console.log("Created placeholder image as fallback");
 
-        // Execute PowerShell
-        await execFileAsync("powershell", [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-Command",
-          psScript,
-        ]);
-
-        // Check if file exists and read it
-        if (fs.existsSync(tempFile)) {
-          const buffer = await fs.promises.readFile(tempFile);
-          console.log(
-            `Method 2 successful, screenshot size: ${buffer.length} bytes`
-          );
-
-          // Cleanup
-          try {
-            await fs.promises.unlink(tempFile);
-          } catch (err) {
-            console.warn("Failed to clean up PowerShell temp file:", err);
-          }
-
-          return buffer;
-        } else {
-          throw new Error("PowerShell screenshot file not created");
-        }
-      } catch (psError) {
-        console.warn("Windows PowerShell screenshot failed:", psError);
-
-        // Method 3: Last resort - create a tiny placeholder image
-        console.log(
-          "All screenshot methods failed, creating placeholder image"
-        );
-
-        // Create a 1x1 transparent PNG as fallback
-        const fallbackBuffer = Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-          "base64"
-        );
-        console.log("Created placeholder image as fallback");
-
-        // Show the error but return a valid buffer so the app doesn't crash
-        throw new Error(
-          "Could not capture screenshot with any method. Please check your Windows security settings and try again."
-        );
-      }
+      throw new Error(
+        "Could not capture screenshot with any method. Please check your Windows security settings and try again."
+      );
     }
   }
+}
 
   public async takeScreenshot(
     hideMainWindow: () => void,
