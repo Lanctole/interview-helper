@@ -119,7 +119,7 @@ export class OllamaProvider extends BaseProvider {
     },
   };
 
-   requestBody.keep_alive = 0;
+   requestBody.keep_alive = 300;
 
   console.log(`[Ollama] Request to ${this.baseUrl}/api/chat with model ${model}`);
   console.log(`[Ollama] keep_alive = ${requestBody.keep_alive}`);
